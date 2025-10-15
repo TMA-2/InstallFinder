@@ -1,6 +1,6 @@
 @{
     RootModule        = 'InstallFinder.psm1'
-    ModuleVersion     = '0.1.0'
+    ModuleVersion     = '0.2.1'
     GUID              = '7f3e8c9a-4b2d-4e5f-9a1c-3d7e8f9a2b4c'
     Author            = 'Jonathan Dunham'
     CompanyName       = 'Texas Health Resources'
@@ -44,7 +44,7 @@
             Tags         = @('Inventory', 'Software', 'Uninstall', 'Registry')
             LicenseUri   = ''
             ProjectUri   = ''
-            ReleaseNotes = 'Initial release of InstallFinder module with Find-InstalledApplication and Start-Uninstall functions.'
+            ReleaseNotes = 'See CHANGELOG.md'
         }
     }
 }
