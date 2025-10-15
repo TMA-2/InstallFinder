@@ -397,15 +397,7 @@
             <table id="appTable">
                 <thead>
                     <tr>
-                        <th class="sortable" data-column="0">Computer</th>
-                        <th class="sortable" data-column="1">Name</th>
-                        <th class="sortable" data-column="2">Version</th>
-                        <th class="sortable" data-column="3">Publisher</th>
-                        <th class="sortable" data-column="4">Install Date</th>
-                        <th class="sortable" data-column="5">GUID</th>
-                        <th class="sortable" data-column="6">Size (MB)</th>
-                        <th class="sortable" data-column="7">Architecture</th>
-                        <th class="sortable" data-column="8">Location</th>
+{{TABLE_HEADERS}}
                     </tr>
                 </thead>
                 <tbody id="tableBody">
@@ -449,21 +441,11 @@
         const showAllBtn = document.getElementById('showAllColumns');
         const resetBtn = document.getElementById('resetColumns');
 
-        // Define all columns with their properties
-        const columns = [
-            { index: 0, name: 'Computer', required: true },
-            { index: 1, name: 'Name', required: true },
-            { index: 2, name: 'Version', required: false },
-            { index: 3, name: 'Publisher', required: false },
-            { index: 4, name: 'Install Date', required: false },
-            { index: 5, name: 'GUID', required: false },
-            { index: 6, name: 'Size (MB)', required: false },
-            { index: 7, name: 'Architecture', required: false },
-            { index: 8, name: 'Location', required: false }
-        ];
+        // Column metadata injected from PowerShell
+        const columns = {{COLUMN_METADATA}};
 
-        // Default visible columns (matches DefaultDisplayPropertySet)
-        const defaultVisibleColumns = [0, 1, 2, 3]; // Computer, Name, Version, Publisher
+        // Default visible columns injected from PowerShell
+        const defaultVisibleColumns = {{DEFAULT_VISIBLE_COLUMNS}};
 
         // Build column visibility checkboxes
         columns.forEach(col => {

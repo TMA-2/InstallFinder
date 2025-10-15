@@ -44,7 +44,7 @@
             Tags         = @('Inventory', 'Software', 'Uninstall', 'Registry')
             LicenseUri   = ''
             ProjectUri   = ''
-            ReleaseNotes = 'Initial release of InstallFinder module with Find-InstalledApplication and Start-Uninstall functions.'
+            ReleaseNotes = 'See CHANGELOG.md'
         }
     }
 }
