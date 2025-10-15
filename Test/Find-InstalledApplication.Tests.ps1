@@ -90,12 +90,12 @@ Describe 'Find-InstalledApplication' {
     Context 'Pipeline Support' {
         It 'Should stream results (not build collection)' {
             # Test that results are emitted during processing
-            $StartTime = Get-Date
+            $Timer = [System.Diagnostics.Stopwatch]::StartNew()
             $FirstResult = Find-InstalledApplication -Search "*" | Select-Object -First 1
-            $FirstResultTime = (Get-Date) - $StartTime
+            $FirstResultTime = $Timer.Elapsed
 
             # If streaming works, getting first result should be very fast
-            $FirstResultTime.TotalSeconds | Should -BeLessThan 5
+            $FirstResultTime.TotalSeconds | Should -BeLessThan 2
         }
 
         It 'Should accept ComputerName from pipeline' {

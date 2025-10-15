@@ -212,16 +212,21 @@ function Find-InstalledApplication {
             DontShow,
             HelpMessage = "(EXPERIMENTAL) Specifies whether to include AppX."
         )]
-        [Parameter(ParameterSetName = "Remove")]
+        [Parameter(
+            ParameterSetName = "Remove"
+        )]
         [Alias('appx')]
         [switch]
         $IncludeAppX,
 
         [Parameter(
+            Mandatory,
             ParameterSetName = 'Remove',
             HelpMessage = "(EXPERIMENTAL) Run uninstall on the results."
         )]
-        [Parameter(ParameterSetName = "Search")]
+        [Parameter(
+            ParameterSetName = "Search"
+        )]
         [switch]
         $Uninstall,
 
@@ -229,7 +234,9 @@ function Find-InstalledApplication {
             ParameterSetName = 'Remove',
             HelpMessage = "Run uninstalls silently."
         )]
-        [Parameter(ParameterSetName = 'Search')]
+        [Parameter(
+            ParameterSetName = 'Search'
+        )]
         [Alias("Quiet", "s", "q")]
         [switch]
         $Silent,
@@ -388,7 +395,18 @@ function Find-InstalledApplication {
         foreach ($Item in $Result) {
             # Format InstallDate
             if ($Item.InstallDate) {
-                $InstallDate = Get-Date ($Item.InstallDate -Replace '^(\d+)(\d{2})(\d{2})$', '$2 $3 $1') -Format 'yyyy/MM/dd' -ErrorAction SilentlyContinue
+                try {
+                    if ($Item.InstallDate.Contains('/')) {
+                        $FormattedDate = $Item.InstallDate -replace '^(\d{4})/(\d{2})/(\d{2})$', '$2 $3 $1'
+                    }
+                    else {
+                        $FormattedDate = $Item.InstallDate -replace '^(\d{4})(\d{2})(\d{2})$', '$2 $3 $1'
+                    }
+                    $InstallDate = Get-Date $FormattedDate -Format 'yyyy/MM/dd' -ErrorAction Stop
+                }
+                catch {
+                    Write-VerboseAndLog "Error parsing InstallDate $($Item.InstallDate) for $($Item.DisplayName)" -Silent
+                }
             }
             else {
                 $InstallDate = "N/A"
@@ -396,7 +414,7 @@ function Find-InstalledApplication {
 
             # Format Version
             if ($Item.DisplayVersion -match '^[\d\.]+$') {
-                $Version = [System.Version]::Parse($Item.DisplayVersion)
+                $Version = [Version]::Parse($Item.DisplayVersion)
             }
             else {
                 $Version = $Item.DisplayVersion
@@ -513,7 +531,7 @@ function Find-InstalledApplication {
                         'HTML' {
                             $HtmlTitle = "$ListSearch on $ListComp - $($ResultCollection.count) applications found"
                             $HTMLOut = $ResultCollection | ConvertTo-InstallFinderHtml -Title $HtmlTitle -DarkMode
-                            
+
                             if ($Silent) {
                                 $FilePath = "$FilePathDefault.$($Output.ToLower())"
                                 $HTMLOut | Out-File -FilePath $FilePath -Encoding utf8
