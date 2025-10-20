@@ -411,11 +411,22 @@
     </div>
 
     <script>
-        // Theme Toggle
+        // Initialize DOM references first
+        const body = document.body;
         const themeToggle = document.getElementById('themeToggle');
         const themeIcon = document.getElementById('themeIcon');
-        const body = document.body;
+        const columnToggle = document.getElementById('columnToggle');
+        const columnMenu = document.getElementById('columnMenu');
+        const columnOptions = document.getElementById('columnOptions');
+        const showAllBtn = document.getElementById('showAllColumns');
+        const resetBtn = document.getElementById('resetColumns');
+        const table = document.getElementById('appTable');
+        const searchBox = document.getElementById('searchBox');
+        const tableBody = document.getElementById('tableBody');
+        const visibleCount = document.getElementById('visibleCount');
+        const noResults = document.getElementById('noResults');
 
+        // Theme Toggle
         themeToggle.addEventListener('click', () => {
             const currentTheme = body.getAttribute('data-theme');
             const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
@@ -433,13 +444,6 @@
             body.setAttribute('data-theme', savedTheme);
             themeIcon.textContent = savedTheme === 'dark' ? '🌙' : '☀️';
         }
-
-        // Column Visibility Management
-        const columnToggle = document.getElementById('columnToggle');
-        const columnMenu = document.getElementById('columnMenu');
-        const columnOptions = document.getElementById('columnOptions');
-        const showAllBtn = document.getElementById('showAllColumns');
-        const resetBtn = document.getElementById('resetColumns');
 
         // Column metadata injected from PowerShell
         const columns = {{COLUMN_METADATA}};
@@ -544,18 +548,17 @@
             });
             updateColumnVisibility();
         } else {
-            // On first load, set checkboxes to match default visibility but don't hide columns yet
-            // This way all columns are visible initially, matching PowerShell output
+            // On first load, use default visible columns
             columns.forEach(col => {
                 const checkbox = document.getElementById(`col-${col.index}`);
-                // All columns visible by default on first load
-                checkbox.checked = true;
+                // Set checkbox based on whether this column is in defaultVisibleColumns
+                checkbox.checked = defaultVisibleColumns.includes(col.index);
             });
-            // Don't call updateColumnVisibility() - leave all columns visible
+            // Apply the default visibility
+            updateColumnVisibility();
         }
 
         // Table Sorting
-        const table = document.getElementById('appTable');
         const headers = table.querySelectorAll('th.sortable');
         let sortColumn = -1;
         let sortAscending = true;
@@ -613,36 +616,56 @@
             rows.forEach(row => tbody.appendChild(row));
         }
 
-        // Search Filter
-        const searchBox = document.getElementById('searchBox');
-        const tableBody = document.getElementById('tableBody');
-        const visibleCount = document.getElementById('visibleCount');
-        const noResults = document.getElementById('noResults');
-
+        // Search Filter with debouncing for better performance
+        let searchTimeout;
+        
+        // Verify search box is attached
+        if (searchBox) {
+            console.log('Search box found and event listener attached');
+        } else {
+            console.error('Search box not found!');
+        }
+        
         searchBox.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const rows = tableBody.querySelectorAll('tr');
-            let visibleRows = 0;
+            clearTimeout(searchTimeout);
+            
+            searchTimeout = setTimeout(() => {
+                const searchTerm = e.target.value.toLowerCase().trim();
+                const rows = tableBody.querySelectorAll('tr');
+                let visibleRows = 0;
 
-            rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                if (text.includes(searchTerm)) {
-                    row.style.display = '';
-                    visibleRows++;
-                } else {
-                    row.style.display = 'none';
-                }
-            });
+                console.log(`Searching for: "${searchTerm}", Total rows: ${rows.length}`);
 
-            visibleCount.textContent = visibleRows;
+                // Use requestAnimationFrame for smooth rendering with large datasets
+                requestAnimationFrame(() => {
+                    rows.forEach(row => {
+                        // Only search through visible cells, not hidden columns
+                        const visibleCells = Array.from(row.cells).filter(cell => {
+                            return cell.style.display !== 'none';
+                        });
+                        const text = visibleCells.map(cell => cell.textContent).join(' ').toLowerCase();
+                        const isVisible = searchTerm === '' || text.includes(searchTerm);
+                        
+                        if (isVisible) {
+                            row.style.display = '';
+                            visibleRows++;
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
 
-            if (visibleRows === 0) {
-                noResults.style.display = 'block';
-                tableBody.style.display = 'none';
-            } else {
-                noResults.style.display = 'none';
-                tableBody.style.display = '';
-            }
+                    console.log(`Visible rows: ${visibleRows}`);
+                    visibleCount.textContent = visibleRows;
+
+                    if (visibleRows === 0 && searchTerm !== '') {
+                        noResults.style.display = 'block';
+                        table.style.display = 'none';
+                    } else {
+                        noResults.style.display = 'none';
+                        table.style.display = '';
+                    }
+                });
+            }, 150); // 150ms debounce
         });
     </script>
 </body>

@@ -413,11 +413,17 @@ function Find-InstalledApplication {
             }
 
             # Format Version
-            if ($Item.DisplayVersion -match '^[\d\.]+$') {
-                $Version = [Version]::Parse($Item.DisplayVersion)
+            try {
+                if ($Item.DisplayVersion -match '^\d\.\d(\.\d){1,2}$') {
+                    $Version = [Version]::Parse($Item.DisplayVersion)
+                }
+                else {
+                    $Version = $Item.DisplayVersion
+                }
             }
-            else {
-                $Version = $Item.DisplayVersion
+            catch {
+                $Err = $_
+                Write-Error "Couldn't parse version $($Item.DisplayVersion): $($Err.Exception.Message)"
             }
 
             # Format uninstall strings
