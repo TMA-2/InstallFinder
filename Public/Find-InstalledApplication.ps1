@@ -1,3 +1,4 @@
+using namespace System.Collections.Generic
 function Find-InstalledApplication {
     <#
     .SYNOPSIS
@@ -42,6 +43,10 @@ function Find-InstalledApplication {
         Specifies the output format when -Display is used. Options: Gridview, Table, HTML, CSV, Excel, CLIXML, XML, JSON.
         Defaults to 'Gridview'.
 
+    .PARAMETER OutputPath
+        Specifies the output path for the results specified with -Output.
+        Defaults to $env:temp\Find-Install-<SearchTerm>.<OutputFormat>
+
     .PARAMETER IncludeAppX
         (EXPERIMENTAL) Include AppX packages in the search. Not yet implemented.
 
@@ -50,6 +55,7 @@ function Find-InstalledApplication {
 
     .PARAMETER Silent
         When used with -Uninstall, attempts to run uninstalls silently without user interaction.
+        When used with -Output, saves the output to a temporary path instead of asking.
 
     .PARAMETER Log
         Log results to a Configuration Manager-formatted log file.
@@ -99,13 +105,13 @@ function Find-InstalledApplication {
         - Modify: ModifyPath
         - Repair: RepairPath
         - System: SystemComponent flag
-        - Path: Full registry key path
+        - Key: Full registry key path
         - User: Logged-on username
         - Hive: Registry hive name
         - ExitCode: Uninstall exit code (if -Uninstall was used)
 
     .NOTES
-        Author: Texas Health Resources - End User Computing
+        Author: Jonathan Dunham
         Searching the registry is significantly faster (~100ms) compared to Get-Package or Win32_Product.
 
     .LINK
@@ -113,7 +119,8 @@ function Find-InstalledApplication {
     #>
     [CmdletBinding(
         DefaultParameterSetName = "Search",
-        SupportsShouldProcess
+        SupportsShouldProcess,
+        ConfirmImpact = 'High'
     )]
     [Alias('Find-Install')]
     param (
@@ -143,6 +150,40 @@ function Find-InstalledApplication {
             Position = 1,
             ParameterSetName = "Remove"
         )]
+        # Place inside a param() block before a parameter.
+        # Help: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_functions_argument_completion?view=powershell-5.1#argumentcompleter-attribute
+        [ArgumentCompleter({
+            [OutputType([CompletionResult])]
+            param($CommandName,$ParameterName,$wordToComplete,$CommandAst,$fakeBoundParameters)
+            # get common registry values
+            $UninstallProperties = @{
+                DisplayName          = 'The name of the application as shown in Programs and Features.'
+                DisplayVersion       = 'The version of the application.'
+                Publisher            = 'The publisher of the application.'
+                InstallLocation      = 'The installation directory of the application.'
+                InstallSource        = 'The source location from which the application was installed.'
+                InstallDate          = 'The date the application was installed.'
+                EstimatedSize        = 'The estimated size of the application in KB.'
+                UninstallString      = 'The command used to uninstall the application.'
+                QuietUninstallString = 'The command used to silently uninstall the application.'
+                ModifyPath           = 'The command used to modify the installation.'
+                RepairPath           = 'The command used to repair the installation.'
+                SystemComponent      = 'Indicates if the application is a system component.'
+                WindowsInstaller     = 'Indicates if the application was installed using Windows Installer (MSI).'
+                URLInfoAbout         = 'URL for more information about the application.'
+                URLUpdateInfo        = 'URL for updating the application.'
+                HelpLink             = 'URL for help regarding the application.'
+                Comments             = 'Additional comments about the application.'
+                NoRemove             = 'Indicates if the application can be removed via the Programs UI (0/1).'
+                NoModify             = 'Indicates if the application can be modified via the Programs UI (0/1).'
+                NoRepair             = 'Indicates if the application can be repaired via the Programs UI (0/1).'
+            }
+            $UninstallProperties.GetEnumerator() |
+                Where-Object Key -like "$wordToComplete*" |
+                ForEach-Object {
+                    [CompletionResult]::new($PSItem.Key, $PSItem.Key, 'ParameterValue', $PSItem.Value)
+                }
+        })]
         [string]
         $Property = 'DisplayName',
 
@@ -174,7 +215,7 @@ function Find-InstalledApplication {
         [Parameter(
             ParameterSetName = "Remove"
         )]
-        [object]
+        [scriptblock]
         $Filter,
 
         [Parameter(
@@ -185,27 +226,32 @@ function Find-InstalledApplication {
 
         [Parameter(
             Position = 3,
-            ValueFromPipeline,
             ValueFromPipelineByPropertyName,
             HelpMessage = "Enter hostname(s) to run the cmdlet against."
         )]
         [Alias("PSComputerName", "Hostname")]
         [ValidateNotNullOrEmpty()]
         [string[]]
-        $ComputerName = 'localhost',
+        $ComputerName = $env:COMPUTERNAME,
 
         [Parameter(
-            HelpMessage = "Display the results in a gridview."
+            HelpMessage = "Display the results in the format specified by -Output."
         )]
         [switch]
         $Display,
 
         [Parameter(
-            ParameterSetName = 'Search'
+            HelpMessage = "Specify the output format to write and/or display the results in."
         )]
         [ValidateSet('Gridview', 'Table', 'HTML', 'CSV', 'Excel', 'CLIXML', 'XML', 'JSON')]
         [string]
         $Output = 'Gridview',
+
+        [Parameter(
+            HelpMessage = "Specify the file path for the -Output format."
+        )]
+        [string]
+        $OutputPath,
 
         [Parameter(
             ParameterSetName = "Search",
@@ -232,7 +278,7 @@ function Find-InstalledApplication {
 
         [Parameter(
             ParameterSetName = 'Remove',
-            HelpMessage = "Run uninstalls silently."
+            HelpMessage = "Run uninstalls silently. Don't ask where to save files with -Output."
         )]
         [Parameter(
             ParameterSetName = 'Search'
@@ -261,29 +307,9 @@ function Find-InstalledApplication {
         $script:LogFile = "$env:TEMP\FindInstall-$Date-$SearchCleaned.log"
 
         $ParamSet = $PSCmdlet.ParameterSetName
+        $PSDefaultParameterValues['Get-CimInstance:Verbose'] = $false
 
         Write-VerboseAndLog -Message "> Searching $($ComputerName -join ', ') for $($Search -join ', ')"
-
-        # Check online status
-        Write-VerboseAndLog -Message "Checking online status for $($ComputerName.count) machines" -Silent
-
-        $OnlineStatus = @(Test-Connection $ComputerName -Count 1 -ErrorAction SilentlyContinue)
-
-        # Filter successful results by PS version
-        if ($PSVersionTable.PSEdition -eq 'Core') {
-            $OnlineStatus = $OnlineStatus | Where-Object Status -eq "Success" | Select-Object -ExpandProperty Destination
-        }
-        else {
-            $OnlineStatus = $OnlineStatus | Where-Object StatusCode -eq 0 | Select-Object -ExpandProperty Address
-        }
-
-        # If no machines were contactable
-        if ($OnlineStatus.count -eq 0) {
-            Write-Warning "Couldn't contact any given hostnames."
-            return
-        }
-
-        Write-VerboseAndLog -Message "$($OnlineStatus.Count)/$($ComputerName.Count) machines online: $($OnlineStatus -join ', ')"
 
         # Registry uninstall paths to search
         $RegKeys = @(
@@ -293,7 +319,41 @@ function Find-InstalledApplication {
             $script:RegCUUninstall32
         )
 
-        # Default filter for system components
+        # Collection for display/output processing (only when needed)
+        if ($Display -or $Uninstall -or $OutputPath -or $PSBoundParameters.ContainsKey('Output')) {
+            $ResultCollection = [List[PSObject]]::new()
+        }
+    }
+
+    process {
+        # Check online status
+        Write-VerboseAndLog -Message "Checking online status for $($ComputerName.count) machines" -Silent
+
+        $Ping = [System.Net.NetworkInformation.Ping]::new()
+        $OnlineStatus = $ComputerName | % {
+            $Reply = $Ping.Send($_, 2000)
+            $Reply | Add-Member -MemberType NoteProperty -Name Name -Value $_ -PassThru
+        }
+        # $OnlineStatus = @(Test-Connection $ComputerName -Count 1 -TimeoutSeconds 2 -ErrorAction SilentlyContinue)
+        # if ($PSVersionTable.PSEdition -eq 'Core') {
+        #     $OnlineComputers = $OnlineStatus | Where-Object Status -eq "Success" | Select-Object -ExpandProperty Destination
+        # }
+        # else {
+        #     $OnlineComputers = $OnlineStatus | Where-Object StatusCode -eq 0 | Select-Object -ExpandProperty Address
+        # }
+
+        $OnlineComputers = $OnlineStatus | Where-Object Status -EQ "Success" | Select-Object -ExpandProperty Name
+
+        # If no machines were contactable
+        if ($OnlineComputers.count -eq 0) {
+            Write-Warning "Couldn't contact any given hostnames."
+            return
+        }
+        else {
+            Write-VerboseAndLog -Message "$($OnlineComputers.Count)/$($ComputerName.Count) machines online"
+        }
+
+        # SECTION: Build filter
         $SystemFilter = { $_.SystemComponent -ne 1 }
 
         # Build search filter based on parameter set
@@ -333,7 +393,7 @@ function Find-InstalledApplication {
                 }
 
                 $SearchFilter = [scriptblock]::Create($SearchString)
-                Write-VerboseAndLog -Message "Search: Created search filter $SearchString from terms: $($Search -join ', ')"
+                Write-Debug "Search: Created search filter $SearchString from terms: $($Search -join ', ')"
             }
             'Filter' {
                 if (-not $System) {
@@ -342,38 +402,60 @@ function Find-InstalledApplication {
                 else {
                     $SearchFilter = [scriptblock]::Create($Filter)
                 }
-                Write-VerboseAndLog -Message "FILTER: Created search filter: $SearchFilter from $Filter"
+                Write-Debug "FILTER: Created search filter: $SearchFilter from $Filter"
             }
         }
 
-        # Collection for display/output processing (only when needed)
-        if ($Display -or $Uninstall) {
-            $ResultCollection = [System.Collections.Generic.List[PSCustomObject]]::new()
+        # SECTION: create session
+        <# try {
+            $PSSession = New-PSSession -ComputerName $OnlineComputers -Name "InstallFinder" -ea SilentlyContinue
+            if (-not $PSSession) {
+                throw [PSRemotingTransportException]::new("Uncaught exception creating sessions.")
+            }
         }
-    }
+        catch {
+            $Err = $_
+            Write-Error "Exception $($Err.Exception.HResult) creating a session on $OnlineComputers > $($Err.Exception.Message)"
+            continue
+        } #>
 
-    process {
         Write-VerboseAndLog -Message "Searching machines for $SearchCleaned using filter: $($SearchFilter.ToString())..."
 
         try {
             # Get logged-on user SID for HKEY_USERS search
-            $UserSID = Get-CimInstance -ClassName Win32_UserProfile -Filter 'NOT LocalPath LIKE "%pickyprocess" AND Loaded = True AND Special = False' -ComputerName $OnlineStatus -ErrorAction SilentlyContinue | Select-Object LocalPath, SID
+            $UserSID = Get-CimInstance -ClassName Win32_UserProfile -Filter 'NOT LocalPath LIKE "%pickyprocess" AND Loaded = True AND Special = False' -ComputerName $OnlineComputers -ea SilentlyContinue
 
-            if ($UserSID) {
-                $Username = $UserSID.LocalPath.Split('\')[-1]
-                Write-VerboseAndLog -Message "Found user SIDs for $Username"
+            foreach($SID in $UserSID) {
+                $Username = ConvertTo-UserName -UserSID $SID.SID
+                Write-VerboseAndLog -Message "Translated user SID to $Username"
+
+                if ($SID.PSComputerName -ieq $env:COMPUTERNAME -and $Username -ieq "$env:USERDOMAIN\$env:USERNAME") {
+                    Write-VerboseAndLog -Message "Skipping current user $Username for HKEY_USERS search"
+                    continue
+                }
 
                 # Add HKU keys to reg search collection
-                $RegKeys += "Microsoft.PowerShell.Core\Registry::HKEY_USERS\$($UserSID[0].SID)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
-                "Microsoft.PowerShell.Core\Registry::HKEY_USERS\$($UserSID[0].SID)\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+                $RegKeys += "Microsoft.PowerShell.Core\Registry::HKEY_USERS\$($SID.SID)\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+                "Microsoft.PowerShell.Core\Registry::HKEY_USERS\$($SID.SID)\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
             }
 
             # Execute registry search
-            if ($ComputerName -match "(localhost|$env:COMPUTERNAME|\.)") {
-                $Result = @(Invoke-Command -ScriptBlock { Get-ItemProperty -Path $RegKeys -ErrorAction SilentlyContinue } | Where-Object -FilterScript $SearchFilter)
+            if ($ComputerName.Count -eq 1 -and $ComputerName -match "(localhost|$env:COMPUTERNAME|\.)") {
+                $Result = @(Invoke-Command -ScriptBlock { Get-ItemProperty -Path $RegKeys -ErrorAction SilentlyContinue } | Where-Object -FilterScript $SearchFilter) | ForEach-Object {
+                    $_ | Add-Member -MemberType NoteProperty -Name User -Value $env:USERNAME
+                    $_ | Add-Member -MemberType NoteProperty -Name PSComputerName -Value $ComputerName[0] -PassThru
+                }
+                Write-VerboseAndLog -Message "Found $($Result.Count) results on local machine."
             }
             else {
-                $Result = @(Invoke-Command -ComputerName $OnlineStatus { Get-ItemProperty -Path $Using:RegKeys -ErrorAction SilentlyContinue } | Where-Object -FilterScript $SearchFilter)
+                $Result = @(Invoke-Command -ComputerName $OnlineComputers { Get-ItemProperty -Path $Using:RegKeys -ErrorAction SilentlyContinue } | Where-Object -FilterScript $SearchFilter) | % {
+                    $CompName = $_.PSComputerName
+                    $User = $UserSID | Where-Object {$_.PSComputerName -ieq $CompName} | % {
+                        ConvertTo-UserName -UserSID $PSItem.SID
+                    }
+                    $_ | Add-Member -MemberType NoteProperty -Name User -Value $User -PassThru
+                }
+                Write-VerboseAndLog -Message "Found $($Result.Count) results on remote machines."
             }
         }
         catch {
@@ -475,19 +557,40 @@ function Find-InstalledApplication {
                 }
             }
 
+            # if ($PSBoundParameters['ComputerName']) {
+            #     $Comp = $Item.PSComputerName
+            # }
+            # else {
+            #     $Comp = $ComputerName -as [string]
+            # }
+
+            try {
+                # get windows installer cache
+                $MSICache = ''
+                if ($Item.WindowsInstaller -eq 1) {
+                    $MSICache = Get-WindowsInstallerCache -GUID $Item.PSChildName -ComputerName $Item.PSComputerName
+                }
+            }
+            catch {
+                $Err = $_
+                Write-Error "Error retrieving Windows Installer cache > $($Err.Exception.Message)"
+            }
+
             # Build application object
             $AppInfo = [PSCustomObject]@{
                 PSTypeName     = 'InstallFinder.Application'
-                Computer       = if ($ComputerName -eq 'localhost') { $env:COMPUTERNAME } else { $Item.PSComputerName }
+                Computer       = $Item.PSComputerName
                 Name           = $Item.DisplayName
                 Version        = $Version
                 InstallDate    = $InstallDate
+                MSI            = if ($Item.WindowsInstaller -eq 1) { $true } else { $false }
                 GUID           = $Item.PSChildName
-                InstallArch    = if ($Item.PSParentPath -ilike '*\wow6432node\*') { 'x86' } else { 'x64' }
-                AppArch        = if ($Item.InstallLocation -ilike '*\Program Files\*') { 'x64' } elseif ($Item.InstallLocation -ilike '*\Program Files (x86)\*') { 'x86' } else { 'Unknown' }
+                InstallArch    = if ($Item.PSParentPath -imatch '\\wow6432node\\') { 'x86' } else { 'x64' }
+                AppArch        = if ($Item.InstallLocation -imatch '\\Program Files\\') { 'x64' } elseif ($Item.InstallLocation -imatch '\\Program Files (x86)\\') { 'x86' } else { 'Unknown' }
                 Publisher      = $Item.Publisher
                 Location       = $Item.InstallLocation
                 Source         = $Item.InstallSource
+                MSICache       = $MSICache
                 Size           = if ($Item.EstimatedSize) { [math]::Round($Item.EstimatedSize * 1KB / 1MB, 2) } else { 0 }
                 Modify         = $Item.ModifyPath
                 Repair         = $Item.RepairPath
@@ -495,31 +598,31 @@ function Find-InstalledApplication {
                 QuietUninstall = $UninstallStr.Full
                 UninstallCmd   = $UninstallStr.Cmd
                 UninstallArg   = $UninstallStr.Args
-                System         = $Item.SystemComponent
-                Path           = $Item.PSPath
-                User           = $Username
+                System         = if ($Item.SystemComponent -eq 1) { $true } else { $false }
+                User           = $Item.User
+                Key            = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Item.PSPath)
                 Hive           = $Item.PSDrive
                 ExitCode       = $null
             }
 
             # If Display or Uninstall is specified, collect results; otherwise stream to pipeline
-            if ($Display -or $Uninstall) {
-                $ResultCollection.Add($AppInfo)
+            if ($Display -or $Uninstall -or $PSBoundParameters['Output'] -or $OutputPath) {
+                [void]$ResultCollection.Add($AppInfo)
             }
             else {
-                Write-Output $AppInfo
+                $AppInfo
             }
         }
     }
 
     end {
         # Process display/output/uninstall operations
-        if ($Display -or $Uninstall) {
+        if ($Display -or $Uninstall -or $PSBoundParameters['Output'] -or $OutputPath) {
             $Selection = $ResultCollection
 
             # Handle display
-            if ($Display) {
-                $ListComp = $OnlineStatus -join ', '
+            if ($Display -or $PSBoundParameters['Output'] -or $OutputPath) {
+                $ListComp = $OnlineComputers -join ', '
                 $ListSearch = $Search -join ', '
                 $DisplayTitle = "$($ResultCollection.count) reg keys found on $ListComp for $ListSearch"
 
@@ -538,32 +641,39 @@ function Find-InstalledApplication {
                             $HtmlTitle = "$ListSearch on $ListComp - $($ResultCollection.count) applications found"
                             $HTMLOut = $ResultCollection | ConvertTo-InstallFinderHtml -Title $HtmlTitle -DarkMode
 
-                            if ($Silent) {
-                                $FilePath = "$FilePathDefault.$($Output.ToLower())"
-                                $HTMLOut | Out-File -FilePath $FilePath -Encoding utf8
-                                Write-Verbose "Wrote apps to $FilePath"
-                            }
-                            else {
-                                $FilePath = Show-SaveDialog -FileType $Output
-                                if ($FilePath) {
-                                    $HTMLOut | Out-File -FilePath $FilePath -Force -Encoding utf8
-                                    Write-Host "Wrote apps to $FilePath"
+                            if (-not $OutputPath) {
+                                if ($Silent) {
+                                    $OutputPath = "$FilePathDefault.$($Output.ToLower())"
                                 }
+                                else {
+                                    $OutputPath = Show-SaveDialog -FileType $Output
+                                }
+                            }
+                            if ($OutputPath) {
+                                # Write as UTF-8 with BOM to ensure proper emoji rendering in Edge
+                                [System.IO.File]::WriteAllText($OutputPath, $HTMLOut, [System.Text.UTF8Encoding]::new($true))
+                                Write-Verbose "Wrote HTML report to $OutputPath"
                             }
                         }
                         'CSV' {
-                            if (-not $Silent) {
-                                $FilePath = Show-SaveDialog -FileType 'tsv', 'csv'
-                                $FileExt = (Split-Path $FilePath -Leaf).Split('.') | Select-Object -Last 1
+                            if ($OutputPath) {
+                                $FileExt = (Split-Path $OutputPath -Leaf).Split('.')[-1]
                             }
                             else {
-                                $FileExt = 'csv'
-                                $FilePathDefault += ".$FileExt"
+                                if ($Silent) {
+                                    $FileExt = 'csv'
+                                    $FilePathDefault += ".$FileExt"
+                                    $OutputPath = $FilePathDefault
+                                }
+                                else {
+                                    $OutputPath = Show-SaveDialog -FileType 'tsv', 'csv'
+                                    $FileExt = (Split-Path $OutputPath -Leaf).Split('.')[-1]
+                                }
                             }
 
                             $CSVSplat = @{
                                 InputObject       = $ResultCollection
-                                Path              = if ($Silent) { $FilePathDefault } else { $FilePath }
+                                Path              = $OutputPath
                                 Delimiter         = if ($FileExt -eq 'tsv') { "`t" } else { "," }
                                 NoTypeInformation = $true
                             }
@@ -571,31 +681,37 @@ function Find-InstalledApplication {
                             Export-Csv @CSVSplat
                         }
                         'JSON' {
-                            if ($Silent) {
-                                $ResultCollection | ConvertTo-Json | Out-File -FilePath "$FilePathDefault.$($Output.ToLower())"
+                            if (-not $OutputPath) {
+                                if ($Silent) {
+                                    $OutputPath = "$FilePathDefault.$($Output.ToLower())"
+                                }
+                                else {
+                                    $OutputPath = Show-SaveDialog -FileType $Output
+                                }
                             }
-                            else {
-                                $FilePath = Show-SaveDialog -FileType $Output
-                                $ResultCollection | ConvertTo-Json | Out-File -FilePath $FilePath
-                            }
+                            $ResultCollection | ConvertTo-Json | Out-File -FilePath $OutputPath
                         }
                         'XML' {
-                            if ($Silent) {
-                                $ResultCollection | ConvertTo-Xml -As Document | Out-File -FilePath "$FilePathDefault.$($Output.ToLower())"
-                            }
-                            else {
-                                $FilePath = Show-SaveDialog -FileType $Output
-                                $ResultCollection | ConvertTo-Xml -As Document | Out-File -FilePath $FilePath
+                            if (-not $OutputPath) {
+                                if ($Silent) {
+                                    $OutputPath = "$FilePathDefault.$($Output.ToLower())"
+                                }
+                                else {
+                                    $OutputPath = Show-SaveDialog -FileType $Output
+                                }
+                                $ResultCollection | ConvertTo-Xml -As Document | Out-File -FilePath $OutputPath
                             }
                         }
                         'CLIXML' {
-                            if ($Silent) {
-                                $ResultCollection | Export-Clixml -Path "$FilePathDefault.$($Output.ToLower())"
+                            if (-not $OutputPath) {
+                                if ($Silent) {
+                                    $OutputPath = "$FilePathDefault.$($Output.ToLower())"
+                                }
+                                else {
+                                    $OutputPath = Show-SaveDialog -FileType $Output
+                                }
                             }
-                            else {
-                                $FilePath = Show-SaveDialog -FileType $Output
-                                $ResultCollection | Export-Clixml -Path $FilePath
-                            }
+                            $ResultCollection | Export-Clixml -Path $OutputPath
                         }
                     }
                 }
@@ -636,13 +752,13 @@ function Find-InstalledApplication {
             }
 
             # Display file if created
-            if ($Display -and $FilePath) {
-                Write-VerboseAndLog -Message "Running file $FilePath"
+            if ($Display -and $OutputPath) {
+                Write-VerboseAndLog -Message "Running file $OutputPath"
                 if ($Output -match '^((CLI)?X|HT)ML|JSON') {
-                    Start-Process msedge -ArgumentList "$FilePath" -WindowStyle Normal
+                    Start-Process msedge -ArgumentList "$OutputPath" -WindowStyle Normal
                 }
                 elseif ($Output -match 'CSV') {
-                    Start-Process $FilePath
+                    Start-Process $OutputPath
                 }
             }
 

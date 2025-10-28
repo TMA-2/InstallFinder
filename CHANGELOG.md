@@ -2,20 +2,66 @@
 
 All notable changes to the InstallFinder module will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.5.5] - 2025-10-26
+
+### Changed
+- Refactored moving device pinging to the process block
+- Attempt to correct username assignment based on HKU results. Not really working yet.
+
+### Fixed
+- Query on remote devices was failing due to a stupid syntax error missing a pipe.
+- Query on local device was returning duplicate results due to an extra PassThru on Add-Member.
+- Live update for ReportTemplate count cards
+
+## [0.4.4] - 2025-10-24
+
+### Added
+- `ConvertTo-UserName` and `ConvertTo-UserSid` private functions
+- `Get-WindowsInstallerCache` private function
+
+### Changed
+- Added a `PSComputerName` property to the locally-run `Invoke-Command` when retrieving registry keys so the property can be used in both local and remote cases without further logic
+
+### Fixed
+- `Find-InstalledApplication` was trying to pass the `$ComputerName` array to `Get-WindowsInstallerCache` which takes `[string]`, resulting in an exception
+
+## [0.4.3] - 2025-10-23
+
+### Added
+- Added `Get-WindowsInstallerCache` private function
+- `Find-InstalledApplication`: Added `MSI` and `MSICache` output properties based on "WindowsInstaller" and "LocalPackage", respectively.
+- `ReportTemplate.html`: Added MSI count card
+- `ReportTemplate.html`: Added live update for all four count cards
+
+### Changed
+- `ConvertTo-InstallFinderHtml`: Updated output columns to reflect the added properties
+- `Find-InstalledApplication`: The System property is now boolean instead of int 0/1.
+
+## [0.3.3] - 2025-10-22
+
+### Added
+- `Find-InstalledApplication`: Added argument completer for common `-Property` fields with descriptions
+
+### Changed
+- `Find-InstalledApplication`: Refactored `-Output` logic. `-Display` is no longer the only parameter; now, any of `-OutputPath`, `-Output`, or `-Display` will trigger gridview/file output.
+- `Find-InstalledApplication`: Changed 'Path' output property to 'Key' and unqualified it first to remove the provider and drive
+
+### Fixed
+- Fixed issue with emojis getting lost from the HTML template by forcing UTF8 (no BOM) encoding
 
 ## [0.2.2] - 2025-10-19
 
 ### Fixed
-- Corrected the initial column display in the HTML template to only the defaults.
+- `ConvertTo-InstallFinderHtml`: Corrected the initial column display in the HTML template to only the defaults.
 - `Find-InstalledApplication`: Added error-handling around version parsing with a more restrictive regex
 
 ## [0.2.1] - 2025-10-14
 
 ### Fixed
 - Corrected the ambiguous Remove parameter set so -Filter works properly
-- Added a try/catch around InstallDate verification to catch stupid things like Discord's "2023 43 06" 
+- Added a try/catch around InstallDate verification to catch stupid things like Discord's "2023 43 06"
 - HTML column sort and search
 
 ## [0.2.0] - 2025-10-12

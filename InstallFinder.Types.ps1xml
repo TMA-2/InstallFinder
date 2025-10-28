@@ -1,22 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Types>
-    <Type>
-        <Name>InstallFinder.Application</Name>
+  <Type>
+    <Name>InstallFinder.Application</Name>
+    <Members>
+      <MemberSet>
+        <Name>PSStandardMembers</Name>
         <Members>
-            <MemberSet>
-                <Name>PSStandardMembers</Name>
-                <Members>
-                    <PropertySet>
-                        <Name>DefaultDisplayPropertySet</Name>
-                        <ReferencedProperties>
-                            <Name>Computer</Name>
-                            <Name>Name</Name>
-                            <Name>Version</Name>
-                            <Name>Publisher</Name>
-                        </ReferencedProperties>
-                    </PropertySet>
-                </Members>
-            </MemberSet>
+          <PropertySet>
+            <Name>DefaultDisplayPropertySet</Name>
+            <ReferencedProperties>
+              <Name>Computer</Name>
+              <Name>Name</Name>
+              <Name>Version</Name>
+              <Name>Publisher</Name>
+              <Name>InstallDate</Name>
+              <Name>GUID</Name>
+              <Name>InstallArch</Name>
+              <Name>AppArch</Name>
+              <Name>Location</Name>
+              <Name>Source</Name>
+              <Name>Size</Name>
+              <!-- <Name>Modify</Name> -->
+              <!-- <Name>Repair</Name> -->
+              <Name>Uninstall</Name>
+              <Name>QuietUninstall</Name>
+              <!-- <Name>UninstallCmd</Name> -->
+              <!-- <Name>UninstallArg</Name> -->
+              <Name>System</Name>
+              <Name>User</Name>
+              <Name>Key</Name>
+              <Name>Hive</Name>
+              <!-- <Name>ExitCode</Name> -->
+            </ReferencedProperties>
+          </PropertySet>
+          <PropertySet>
+            <Name>DefaultKeyPropertySet</Name>
+            <ReferencedProperties>
+              <Name>Computer</Name>
+              <Name>Name</Name>
+              <Name>Version</Name>
+            </ReferencedProperties>
+          </PropertySet>
+          <NoteProperty>
+            <Name>DefaultDisplayProperty</Name>
+            <Value>GUID</Value>
+          </NoteProperty>
         </Members>
-    </Type>
+      </MemberSet>
+    </Members>
+  </Type>
 </Types>

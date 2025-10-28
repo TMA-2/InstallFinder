@@ -11,12 +11,10 @@
                 <TableHeaders>
                     <TableColumnHeader>
                         <Label>Computer</Label>
-                        <Width>15</Width>
                         <Alignment>Left</Alignment>
                     </TableColumnHeader>
                     <TableColumnHeader>
                         <Label>Name</Label>
-                        <Width>35</Width>
                         <Alignment>Left</Alignment>
                     </TableColumnHeader>
                     <TableColumnHeader>

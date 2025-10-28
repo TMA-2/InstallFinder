@@ -6,7 +6,7 @@ Successfully refactored the monolithic `Find-Install.ps1` script (1013 lines) in
 ## Key Improvements
 
 ### 1. **Proper Module Structure**
-Created a professional module layout following EUC conventions:
+Created a professional module layout following PowerShell conventions:
 ```
 InstallFinder/
 ├── InstallFinder.psd1          # Module manifest
@@ -82,7 +82,7 @@ Created comprehensive Pester v5 tests:
 - **README.md**: Installation, usage examples, feature list
 - **CHANGELOG.md**: Version history following Keep a Changelog format
 - **TODO.md**: Planned enhancements organized by function
-- **LICENSE**: THR proprietary license
+- **LICENSE**: MIT license
 - Comprehensive comment-based help for all public functions
 
 ## Usage Examples
@@ -125,10 +125,6 @@ None - the module maintains backward compatibility:
 3. Consider adding to module repository / internal gallery
 4. Add more comprehensive tests for edge cases
 5. Implement TODO items as needed (AppX support, etc.)
-
-## Location
-Module installed at:
-`c:\Users\e.dunhjo\OneDrive - Texas Health Resources\Scripts\PS\Modules\InstallFinder\`
 
 ## Version
 **v0.1.0** - Initial release (2025-10-11)

@@ -96,12 +96,12 @@ function Start-Uninstall {
 
     process {
         $ParameterSet = $PSCmdlet.ParameterSetName
-        $IsLocal = $ComputerName -eq $env:COMPUTERNAME
+        $IsLocal = $ComputerName -match "^($env:COMPUTERNAME|localhost|\.)$"
 
         try {
             $Process = @{
                 HasExited = $true
-                ExitCode = 0
+                ExitCode  = 0
             }
 
             switch ($ParameterSet) {

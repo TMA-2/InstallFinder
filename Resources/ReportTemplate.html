@@ -384,11 +384,15 @@
                 <div class="stat-label">Visible Applications</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value">{{X64_COUNT}}</div>
+                <div class="stat-value" id="msiCount">{{MSI_COUNT}}</div>
+                <div class="stat-label">MSI Applications</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="visible64">{{X64_COUNT}}</div>
                 <div class="stat-label">64-bit Applications</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value">{{X86_COUNT}}</div>
+                <div class="stat-value" id="visible32">{{X86_COUNT}}</div>
                 <div class="stat-label">32-bit Applications</div>
             </div>
         </div>
@@ -424,6 +428,9 @@
         const searchBox = document.getElementById('searchBox');
         const tableBody = document.getElementById('tableBody');
         const visibleCount = document.getElementById('visibleCount');
+        const msiCount = document.getElementById('msiCount');
+        const visible64 = document.getElementById('visible64');
+        const visible32 = document.getElementById('visible32');
         const noResults = document.getElementById('noResults');
 
         // Theme Toggle
@@ -450,6 +457,10 @@
 
         // Default visible columns injected from PowerShell
         const defaultVisibleColumns = {{DEFAULT_VISIBLE_COLUMNS}};
+
+        // Find column indices dynamically by property name
+        const msiColumnIndex = columns.find(col => col.property === 'MSI')?.index;
+        const installArchColumnIndex = columns.find(col => col.property === 'InstallArch')?.index;
 
         // Build column visibility checkboxes
         columns.forEach(col => {
@@ -618,21 +629,24 @@
 
         // Search Filter with debouncing for better performance
         let searchTimeout;
-        
+
         // Verify search box is attached
         if (searchBox) {
             console.log('Search box found and event listener attached');
         } else {
             console.error('Search box not found!');
         }
-        
+
         searchBox.addEventListener('input', (e) => {
             clearTimeout(searchTimeout);
-            
+
             searchTimeout = setTimeout(() => {
                 const searchTerm = e.target.value.toLowerCase().trim();
                 const rows = tableBody.querySelectorAll('tr');
                 let visibleRows = 0;
+                let msiVisibleRows = 0;
+                let x64VisibleRows = 0;
+                let x86VisibleRows = 0;
 
                 console.log(`Searching for: "${searchTerm}", Total rows: ${rows.length}`);
 
@@ -645,10 +659,28 @@
                         });
                         const text = visibleCells.map(cell => cell.textContent).join(' ').toLowerCase();
                         const isVisible = searchTerm === '' || text.includes(searchTerm);
-                        
+
                         if (isVisible) {
                             row.style.display = '';
                             visibleRows++;
+                            
+                            // Dynamically check MSI column if it exists
+                            if (msiColumnIndex !== undefined && row.cells[msiColumnIndex]) {
+                                const msiValue = row.cells[msiColumnIndex].textContent.trim();
+                                if (msiValue === 'True') {
+                                    msiVisibleRows++;
+                                }
+                            }
+                            
+                            // Dynamically check InstallArch column if it exists
+                            if (installArchColumnIndex !== undefined && row.cells[installArchColumnIndex]) {
+                                const installArch = row.cells[installArchColumnIndex].textContent.trim();
+                                if (installArch === 'x64') {
+                                    x64VisibleRows++;
+                                } else if (installArch === 'x86') {
+                                    x86VisibleRows++;
+                                }
+                            }
                         } else {
                             row.style.display = 'none';
                         }
@@ -656,6 +688,9 @@
 
                     console.log(`Visible rows: ${visibleRows}`);
                     visibleCount.textContent = visibleRows;
+                    msiCount.textContent = msiVisibleRows;
+                    visible64.textContent = x64VisibleRows;
+                    visible32.textContent = x86VisibleRows;
 
                     if (visibleRows === 0 && searchTerm !== '') {
                         noResults.style.display = 'block';

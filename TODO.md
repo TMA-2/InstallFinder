@@ -13,20 +13,37 @@
 - [ ] Add PODE web server and convert HTML report to a live application
 - [ ] ...Try PSU integration?
 
-## Find-InstalledApplication
-- [ ] Add confirmation dialog integration when -Confirm and -Display are both used (possibly MessageBox)
-- [ ] Add calculated Size property based on InstallLocation when EstimatedSize is missing *only for local search*, unless parallel processing has been implemented
-  - [ ] Use a fast directory size calculator
+## Functions
+
+### Find-InstalledApplication
+- [x] Un-qualify Path (PSPath) to a regular local registry key
+- [x] Add `-OutputPath` parameter to specify where to save files
+- [ ] Refactor to start a single session/runspace per machine to pass commands to
+- [ ] Add parallel processing of multiple devices (runspaces?)
+- [ ] Fix duplicate HKCU\HKU entries
+- [ ] Integrate `WinResources\Get-RemoteRegistry` to query registry keys
+- [ ] Use automatic property selection via TypeData or changing the output to an actual class.
+- [ ] Add confirmation dialog integration when `-Confirm` and `-Display` are both used (possibly MessageBox)
+- [ ] Integrate calculated Size property based on InstallLocation when EstimatedSize is missing *only for local search*, unless parallel processing has been implemented
+  - [ ] Use a fast directory size calculator like `WinResources\Measure-PathSize`
+- [ ] Integrate `Get-ApplicationType` on uninstall command *only for non-MSI local search*
 - [ ] Integrate icon display in HTML using the **ExportIcon** module, *only for local search*
-- [ ] Integrate a local MSI source field using *Convert-UUIDSquished* from **GUIDEx**
+- [x] Integrate a local MSI source field using *Convert-UUIDSquished* from **GUIDEx**
 - [ ] Better handling of uninstall strings with complex argument structures (e.g., Edge with multiple flags)
-- [ ] Add filtering after initial search for version ranges (currently done during query)
+- [ ] (?) Add filtering after initial search for version ranges (currently done during query)
 - [x] Improve InstallDate parsing for edge cases
 
-## Start-Uninstall
+### Start-Uninstall
 - [ ] Add support for different uninstall modes (Silent, Passive, Attended/Normal) as parameter set *only if running locally*
 - [ ] Improve error reporting with more detailed exit code explanations, possibly using the ErrorEx module
 - [ ] Add retry logic for failed uninstalls
+
+### ConvertTo-InstallFinderHtml
+- [x] Add MSI count card
+
+### ReportTemplate.html
+- [ ] Add MSI and MSICache columns
+- [ ] Fix live-update InstallArch x64, x32, and MSI counts on filter
 
 ## Testing
 - [ ] Add integration tests for remote computer scenarios

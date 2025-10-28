@@ -1,15 +1,24 @@
 @{
     RootModule        = 'InstallFinder.psm1'
-    ModuleVersion     = '0.2.2'
+    ModuleVersion     = '0.5.5'
     GUID              = '7f3e8c9a-4b2d-4e5f-9a1c-3d7e8f9a2b4c'
-    Author            = 'Jonathan Dunham'
-    CompanyName       = 'Texas Health Resources'
-    Copyright         = '(c) 2025 Jonathan Dunham. All rights reserved.'
+    Author            = 'Jon Dunham'
+    CompanyName       = 'TMA-2'
+    Copyright         = '(c) 2025 TMA-2. All rights reserved.'
     Description       = 'PowerShell module for finding and managing installed applications via registry search with support for remote computers and uninstallation.'
     PowerShellVersion = '5.1'
 
     # Modules that must be imported into the global environment prior to importing this module
-    # RequiredModules = @()
+    RequiredModules = @(
+        @{
+            ModuleName    = 'GUIDEx'
+            ModuleVersion = '2.6.2'
+        }
+        # @{
+        #     ModuleName    = 'WinResources'
+        #     ModuleVersion = '0.10.15'
+        # }
+    )
 
     # Recommended modules for enhanced logging functionality
     # Note: CMLogs module is optional but recommended for CM-formatted log file support
@@ -42,8 +51,8 @@
     PrivateData       = @{
         PSData = @{
             Tags         = @('Inventory', 'Software', 'Uninstall', 'Registry')
-            LicenseUri   = ''
-            ProjectUri   = ''
+            # LicenseUri   = 'https://github.com/tma-2/installfinder/blob/main/LICENSE'
+            # ProjectUri   = 'https://github.com/tma-2/installfinder'
             ReleaseNotes = 'See CHANGELOG.md'
         }
     }

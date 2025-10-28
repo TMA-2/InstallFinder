@@ -1,3 +1,5 @@
+using namespace System.Collections.Generic
+
 function ConvertTo-InstallFinderHtml {
     <#
     .SYNOPSIS
@@ -37,7 +39,7 @@ function ConvertTo-InstallFinderHtml {
     )
 
     begin {
-        $Applications = [System.Collections.Generic.List[PSCustomObject]]::new()
+        $Applications = [List[PSCustomObject]]::new()
     }
 
     process {
@@ -54,7 +56,8 @@ function ConvertTo-InstallFinderHtml {
             throw "HTML template not found at: $TemplatePath"
         }
 
-        $Template = Get-Content $TemplatePath -Raw
+        # Read template with UTF-8 encoding to preserve emojis
+        $Template = Get-Content $TemplatePath -Raw -Encoding UTF8
 
         # Define column metadata (order matches table structure)
         $ColumnMetadata = @(
@@ -63,17 +66,19 @@ function ConvertTo-InstallFinderHtml {
             @{ index = 2; name = 'Version'; required = $false; property = 'Version' }
             @{ index = 3; name = 'Publisher'; required = $false; property = 'Publisher' }
             @{ index = 4; name = 'Install Date'; required = $false; property = 'InstallDate' }
-            @{ index = 5; name = 'GUID'; required = $false; property = 'GUID' }
-            @{ index = 6; name = 'Size (MB)'; required = $false; property = 'Size' }
-            @{ index = 7; name = 'Architecture (Install)'; required = $false; property = 'InstallArch' }
-            @{ index = 8; name = 'Architecture (App)'; required = $false; property = 'AppArch' }
-            @{ index = 9; name = 'Uninstall Cmd'; required = $false; property = 'UninstallCmd' }
-            @{ index = 10; name = 'Uninstall Args'; required = $false; property = 'UninstallArg' }
-            @{ index = 11; name = 'Location'; required = $false; property = 'Location' }
-            @{ index = 12; name = 'Source'; required = $false; property = 'Source' }
-            @{ index = 13; name = 'Registry Path'; required = $false; property = 'Path' }
-            @{ index = 14; name = 'User'; required = $false; property = 'User' }
-            @{ index = 15; name = 'Hive'; required = $false; property = 'Hive' }
+            @{ index = 5; name = 'Windows Installer'; required = $false; property = 'MSI' }
+            @{ index = 6; name = 'GUID'; required = $false; property = 'GUID' }
+            @{ index = 7; name = 'Size (MB)'; required = $false; property = 'Size' }
+            @{ index = 8; name = 'Architecture (Install)'; required = $false; property = 'InstallArch' }
+            @{ index = 9; name = 'Architecture (App)'; required = $false; property = 'AppArch' }
+            @{ index = 10; name = 'Uninstall Cmd'; required = $false; property = 'UninstallCmd' }
+            @{ index = 11; name = 'Uninstall Args'; required = $false; property = 'UninstallArg' }
+            @{ index = 12; name = 'Location'; required = $false; property = 'Location' }
+            @{ index = 13; name = 'Source'; required = $false; property = 'Source' }
+            @{ index = 14; name = 'MSI Cache'; required = $false; property = 'MSICache' }
+            @{ index = 15; name = 'Registry Path'; required = $false; property = 'Key' }
+            @{ index = 16; name = 'User'; required = $false; property = 'User' }
+            @{ index = 17; name = 'Hive'; required = $false; property = 'Hive' }
         )
 
         # Default visible columns (Computer, Name, Version, Publisher)
@@ -95,6 +100,7 @@ function ConvertTo-InstallFinderHtml {
         $TotalCount = $Applications.Count
         $X64Count = ($Applications | Where-Object InstallArch -eq 'x64' | Measure-Object).Count
         $X86Count = ($Applications | Where-Object InstallArch -eq 'x86' | Measure-Object).Count
+        $MSICount = ($Applications | Where-Object MSI -eq $true | Measure-Object).Count
 
         # Build table rows
         $TableRows = foreach ($App in $Applications) {
@@ -105,6 +111,7 @@ function ConvertTo-InstallFinderHtml {
                     <td>$($App.Version)</td>
                     <td>$($App.Publisher)</td>
                     <td>$($App.InstallDate)</td>
+                    <td>$($App.MSI)</td>
                     <td>$($App.GUID)</td>
                     <td class="size-cell">$($App.Size)</td>
                     <td>$($App.InstallArch)</td>
@@ -113,7 +120,8 @@ function ConvertTo-InstallFinderHtml {
                     <td>$($App.UninstallArg)</td>
                     <td class="path-cell">$($App.Location)</td>
                     <td class="path-cell">$($App.Source)</td>
-                    <td class="path-cell">$($App.Path)</td>
+                    <td class="path-cell">$($App.MSICache)</td>
+                    <td class="path-cell">$($App.Key)</td>
                     <td>$($App.User)</td>
                     <td>$($App.Hive)</td>
                 </tr>
@@ -131,6 +139,7 @@ function ConvertTo-InstallFinderHtml {
         Replace('{{VISIBLE_COUNT}}', $TotalCount).
         Replace('{{X64_COUNT}}', $X64Count).
         Replace('{{X86_COUNT}}', $X86Count).
+        Replace('{{MSI_COUNT}}', $MSICount).
         Replace('{{COLUMN_METADATA}}', $ColumnMetadataJson).
         Replace('{{DEFAULT_VISIBLE_COLUMNS}}', $DefaultVisibleColumnsJson).
         Replace('{{TABLE_HEADERS}}', $TableHeadersHtml).

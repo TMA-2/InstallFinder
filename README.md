@@ -90,13 +90,10 @@ Runs uninstall commands locally or remotely with proper error handling and exit 
 
 ## License
 
-All Rights Reserved
+Copyright (c) 2025 Jonathan Dunham
 
-Copyright (c) 2025 Texas Health Resources
-
-THE CONTENTS OF THIS PROJECT ARE PROPRIETARY AND CONFIDENTIAL.
-UNAUTHORIZED COPYING, TRANSFERRING OR REPRODUCTION OF THE CONTENTS OF THIS PROJECT, VIA ANY MEDIUM IS STRICTLY PROHIBITED.
+[See LICENSE](LICENSE)
 
 ## Authors
 
-- Texas Health Resources - End User Computing Team
+- Jonathan Dunham
